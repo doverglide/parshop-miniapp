@@ -1,9 +1,0 @@
-/* Base */
-@import url(./base/base.css);
-@import url(./base/reset.css);
-
-/* Header */
-@import url(./blocks/header.css);
-@import url(./blocks/invites.css);
-@import url(./blocks/points.css);
-@import url(./blocks/top.css);
