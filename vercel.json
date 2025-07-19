@@ -1,12 +1,14 @@
 {
-    "rewrites": [
+  "rewrites": [
     {
-        "source": "/",
-        "destination": "/src/index.html"
+      "source": "/",
+      "destination": "/src/index.html"
     },
     {
-        "source": "/:path*",
-        "destination": "/src/:path*"
+      "source": "/:path*",
+      "destination": "/src/:path*"
     }
-    ]
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }
