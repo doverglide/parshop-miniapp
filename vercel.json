@@ -1,9 +1,15 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/:path*", "destination": "/:path*" }
+  "version": 2,
+  "builds": [
+    { "src": "index.html",      "use": "@vercel/static" },
+    { "src": "css/**/*.css",    "use": "@vercel/static" },
+    { "src": "scripts/**/*.js", "use": "@vercel/static" },
+    { "src": "public/**",       "use": "@vercel/static" },
+    { "src": "functions/**/*.js","use": "@vercel/node" }
   ],
-  "ignoreCommand": "true",
-  "outputDirectory": "."
+  "routes": [
+    { "src": "/api/(.*)",      "dest": "/functions/$1.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)",          "dest": "/index.html" }
+  ]
 }
