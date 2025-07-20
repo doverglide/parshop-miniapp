@@ -19,3 +19,19 @@ fetch(API, {
     }
 })
 .catch(console.error);
+
+fetch('https://parshop-miniapp.vercel.app/api/getLeaderboard')
+    .then(res => res.json())
+    .then(data => {
+        const topList = document.querySelector('#top-users-list');
+
+        topList.innerHTML = data.topUsers.map((user, index) => {
+        const medals = ['🥇', '🥈', '🥉'];
+        return `
+            <li class="top__item">
+                ${medals[index] || ''} @${user.username} — ${user.invites} приглашений
+            </li>
+            `;
+        }).join('');
+    })
+    .catch(console.error);
