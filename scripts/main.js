@@ -11,9 +11,9 @@ fetch(API, {
 .then(data => {
     const user = data.user;
     if (user) {
-        console.log('Пользователь найден:', user);
         document.querySelector('#username').textContent = user.username;
-        // другие данные можешь так же выводить
+        document.querySelector('#invites').textContent = user.invites;
+        document.querySelector('#points').textContent = user.points;
     } else {
         console.warn('Пользователь не найден');
     }
