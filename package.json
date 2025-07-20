@@ -1,6 +1,8 @@
 {
+  "name": "miniapp",
+  "version": "1.0.0",
+  "type": "module",
   "dependencies": {
-    "@supabase/supabase-js": "^2.52.0",
-    "type": "module"
+    "@supabase/supabase-js": "^2.52.0"
   }
 }
