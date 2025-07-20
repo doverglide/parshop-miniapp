@@ -17,6 +17,9 @@
 
 .top__item {
     font-size: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .top__place {
