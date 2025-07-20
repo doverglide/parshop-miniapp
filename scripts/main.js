@@ -33,5 +33,9 @@ fetch('https://parshop-miniapp.vercel.app/api/getLeaderboard')
             </li>
             `;
         }).join('');
+
+        const myIndex = topUsers.findIndex(u => u.telegram_id === currentUserId);
+        const myPlace = myIndex !== -1 ? myIndex + 1 : '—';
+        document.querySelector('#my-place').textContent = `Ваше место в топе: ${myPlace}`;
     })
     .catch(console.error);
