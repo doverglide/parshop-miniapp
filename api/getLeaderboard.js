@@ -10,8 +10,8 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
         .from('users')
-        .select('username, invites')
-        .order('invites', { ascending: false }) // сортируем по убыванию
+        .select('telegram_id, username, invites')
+        .order('invites', { ascending: false })
         .limit(3)
 
     if (error) {
