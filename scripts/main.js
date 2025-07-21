@@ -16,7 +16,7 @@ if (!telegramUser?.id) {
             document.querySelector('#invites').textContent = user.invites ?? 0;
             document.querySelector('#points').textContent = user.points ?? 0;
 
-            // Получаем топ только после успешного syncUser
+            // Получаем топ после синка
             return fetch('https://parshop-miniapp.vercel.app/api/getLeaderboard');
         } else {
             console.warn('Пользователь не найден');
@@ -26,12 +26,13 @@ if (!telegramUser?.id) {
     .then(res => res?.json?.())
     .then(data => {
         if (!data) return;
-        
+
         const topUsers = data.topUsers;
         const topList = document.querySelector('#top-users-list');
         const medals = ['🥇', '🥈', '🥉'];
 
-        topList.innerHTML = topUsers.map((user, index) => {
+        // 🔥 отображаем только топ-3
+        topList.innerHTML = topUsers.slice(0, 3).map((user, index) => {
             return `
                 <li class="top__item">
                     ${medals[index] || ''} @${user.username} — ${user.invites} приглашений
@@ -39,6 +40,7 @@ if (!telegramUser?.id) {
             `;
         }).join('');
 
+        // 🔥 ищем текущее место
         const myIndex = topUsers.findIndex(u => Number(u.telegram_id) === Number(telegramUser.id));
         const myPlace = myIndex !== -1 ? myIndex + 1 : '—';
 
