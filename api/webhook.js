@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   const auth = req.headers['authorization']
-  if (!auth || auth !== `Bearer ${process.env.PUZZLEBOT_WEBHOOK_TOKEN}`) {
+  if (!auth || auth !== `Bearer ${process.env.BOT_TOKEN}`) {
     return res.status(401).end()
   }
 
