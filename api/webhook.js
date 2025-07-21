@@ -1,38 +1,39 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-)
-
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' })
+  console.log('🌐 Webhook fired, method:', req.method)
+  console.log('📥 Headers:', req.headers)
+  console.log('📦 Body:', JSON.stringify(req.body, null, 2))
+
+  if (req.method !== 'POST') return res.status(405).end()
 
   const auth = req.headers['authorization']
   if (!auth || auth !== `Bearer ${process.env.PUZZLEBOT_WEBHOOK_TOKEN}`) {
-    return res.status(401).json({ error: 'Unauthorized' })
+    return res.status(401).end()
   }
 
-  const { userId, username } = req.body
+  // Посмотрите в логах, где лежит Telegram‑юзер:
+  // возможно, это req.body.message.from или req.body.user
+  const tgUser = req.body.user || req.body.message?.from
 
-  if (!userId) return res.status(400).json({ error: 'Missing userId' })
+  if (!tgUser?.id) {
+    console.warn('⚠️ Не нашли user.id в теле запроса')
+    return res.status(400).end()
+  }
 
+  // Теперь можете upsert’ить именно эти поля:
   const { data, error } = await supabase
     .from('users')
-    .upsert(
-      {
-        telegram_id: Number(userId),
-        username: username ?? null,
-      },
-      { onConflict: ['telegram_id'] }
-    )
+    .upsert({
+      telegram_id: Number(tgUser.id),
+      username: tgUser.username ?? null,
+    }, { onConflict: ['telegram_id'] })
     .select()
     .single()
 
   if (error) {
-    console.error('Supabase error:', error)
-    return res.status(500).json({ error: error.message })
+    console.error('❌ Supabase error:', error)
+    return res.status(500).end()
   }
 
-  return res.status(200).json({ success: true, user: data })
+  console.log('✅ Пользователь записан:', data)
+  res.status(200).json({ success: true })
 }
