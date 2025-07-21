@@ -1,3 +1,16 @@
+export const config = {
+  api: {
+    bodyParser: true,
+  },
+}
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+)
+
 export default async function handler(req, res) {
   console.log('🌐 Webhook fired, method:', req.method)
   console.log('📥 Headers:', req.headers)
@@ -10,8 +23,6 @@ export default async function handler(req, res) {
     return res.status(401).end()
   }
 
-  // Посмотрите в логах, где лежит Telegram‑юзер:
-  // возможно, это req.body.message.from или req.body.user
   const tgUser = req.body.user || req.body.message?.from
 
   if (!tgUser?.id) {
@@ -19,7 +30,6 @@ export default async function handler(req, res) {
     return res.status(400).end()
   }
 
-  // Теперь можете upsert’ить именно эти поля:
   const { data, error } = await supabase
     .from('users')
     .upsert({
