@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     .from('users')
     .select('*')
     .eq('telegram_id', telegramUserId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     console.error('Supabase fetch error:', error)
