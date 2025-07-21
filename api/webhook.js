@@ -11,25 +11,6 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 )
 
-function findNumberFields(obj, path = '') {
-  if (typeof obj !== 'object' || obj === null) return []
-
-  let results = []
-
-  for (const key in obj) {
-    const value = obj[key]
-    const currentPath = path ? `${path}.${key}` : key
-
-    if (typeof value === 'number') {
-      results.push({ path: currentPath, value })
-    } else if (typeof value === 'object') {
-      results = results.concat(findNumberFields(value, currentPath))
-    }
-  }
-
-  return results
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
@@ -40,11 +21,20 @@ export default async function handler(req, res) {
 
   console.log('🌐 Webhook received, full body:\n', JSON.stringify(req.body, null, 2))
 
-  const numberFields = findNumberFields(req.body)
-  console.log('🔎 Numeric fields found in webhook body:', numberFields)
+  const webhookData = req.body
 
-  // Можно здесь добавить логику обновления в БД, когда определишь нужное поле
+  const { data, error } = await supabase
+    .from('webhook_logs')
+    .insert([{
+      update_id: webhookData.update_id,
+      payload: webhookData,
+      received_at: new Date().toISOString(),
+    }])
 
-  // Просто отвечаем 200 OK
+  if (error) {
+    console.error('❌ Supabase insert error:', error)
+    return res.status(500).json({ error: 'DB insert failed' })
+  }
+
   res.status(200).json({ success: true })
 }
