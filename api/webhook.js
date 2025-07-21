@@ -11,11 +11,26 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 )
 
-export default async function handler(req, res) {
-  console.log('🌐 Webhook fired, method:', req.method)
-  console.log('📥 Headers:', req.headers)
-  console.log('📦 Body:', JSON.stringify(req.body, null, 2))
+function findNumberFields(obj, path = '') {
+  if (typeof obj !== 'object' || obj === null) return []
 
+  let results = []
+
+  for (const key in obj) {
+    const value = obj[key]
+    const currentPath = path ? `${path}.${key}` : key
+
+    if (typeof value === 'number') {
+      results.push({ path: currentPath, value })
+    } else if (typeof value === 'object') {
+      results = results.concat(findNumberFields(value, currentPath))
+    }
+  }
+
+  return results
+}
+
+export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end()
 
   const auth = req.headers['authorization']
@@ -23,27 +38,13 @@ export default async function handler(req, res) {
     return res.status(401).end()
   }
 
-  const tgUser = req.body.user || req.body.message?.from
+  console.log('🌐 Webhook received, full body:\n', JSON.stringify(req.body, null, 2))
 
-  if (!tgUser?.id) {
-    console.warn('⚠️ Не нашли user.id в теле запроса')
-    return res.status(400).end()
-  }
+  const numberFields = findNumberFields(req.body)
+  console.log('🔎 Numeric fields found in webhook body:', numberFields)
 
-  const { data, error } = await supabase
-    .from('users')
-    .upsert({
-      telegram_id: Number(tgUser.id),
-      username: tgUser.username ?? null,
-    }, { onConflict: ['telegram_id'] })
-    .select()
-    .single()
+  // Можно здесь добавить логику обновления в БД, когда определишь нужное поле
 
-  if (error) {
-    console.error('❌ Supabase error:', error)
-    return res.status(500).end()
-  }
-
-  console.log('✅ Пользователь записан:', data)
+  // Просто отвечаем 200 OK
   res.status(200).json({ success: true })
 }
