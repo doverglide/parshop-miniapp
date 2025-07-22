@@ -30,51 +30,50 @@ export default async function handler(req, res) {
 
   let user = existingUser
 
-  if (!existingUser) {
-    // Создаем нового пользователя
-    const { data: newUser, error: insertError } = await supabase
+if (!existingUser) {
+  // Создаем нового пользователя, с invited_by — пригласивший, если есть и это не он сам
+  const { data: newUser, error: insertError } = await supabase
+    .from('users')
+    .insert({
+      telegram_id: String(telegram_id),
+      username: username || null,
+      invites: 0,
+      points: 0,
+      invited_by: (ref_code && String(ref_code) !== String(telegram_id)) ? String(ref_code) : null,
+    })
+    .select('invites, points, username, telegram_id, invited_by')
+    .single()
+
+  if (insertError) {
+    console.error('❌ Ошибка создания пользователя:', insertError)
+    return res.status(500).json({ error: insertError.message })
+  }
+
+  user = newUser
+
+  // Обновляем invites у пригласившего, если есть
+  if (ref_code && String(ref_code) !== String(telegram_id)) {
+    const refId = String(ref_code)
+    const { data: refUser, error: refFetchError } = await supabase
       .from('users')
-      .insert({
-        telegram_id: String(telegram_id),
-        username: username || null,
-        invites: 0,
-        points: 0,
-      })
-      .select('invites, points, username, telegram_id')
-      .single()
+      .select('invites')
+      .eq('telegram_id', refId)
+      .maybeSingle()
 
-    if (insertError) {
-      console.error('❌ Ошибка создания пользователя:', insertError)
-      return res.status(500).json({ error: insertError.message })
-    }
-
-    user = newUser
-
-    // Только при создании — увеличиваем invites у пригласившего
-    if (ref_code && String(ref_code) !== String(telegram_id)) {
-      const refId = String(ref_code)
-      const { data: refUser, error: refFetchError } = await supabase
+    if (refFetchError) {
+      console.error('❌ Ошибка поиска реферера:', refFetchError)
+    } else if (refUser) {
+      const newInvites = (refUser.invites || 0) + 1
+      const { error: updateErr } = await supabase
         .from('users')
-        .select('invites')
+        .update({ invites: newInvites })
         .eq('telegram_id', refId)
-        .maybeSingle()
-
-      if (refFetchError) {
-        console.error('❌ Ошибка поиска реферера:', refFetchError)
-      } else if (refUser) {
-        const newInvites = (refUser.invites || 0) + 1
-        const { error: updateErr } = await supabase
-          .from('users')
-          .update({ invites: newInvites })
-          .eq('telegram_id', refId)
-        if (updateErr) {
-          console.error('❌ Ошибка обновления invites:', updateErr)
-        } else {
-          console.log(`✅ Invites у ${refId} обновлены до ${newInvites}`)
-        }
+      if (updateErr) {
+        console.error('❌ Ошибка обновления invites:', updateErr)
+      } else {
+        console.log(`✅ Invites у ${refId} обновлены до ${newInvites}`)
       }
     }
   }
-
-  return res.status(200).json({ user })
+}
 }
