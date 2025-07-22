@@ -5,6 +5,7 @@
   const refCode = String(user.id);
   const botUsername = tg.initDataUnsafe.bot_username || 'Parshop_116bot';
   const appShort = 'Parcoin';
+
   const loader = document.getElementById('loader');
   const app = document.getElementById('app');
 
@@ -25,12 +26,11 @@
   }
 
   function hideLoaderAndShowApp() {
-    console.log('✅ Приложение готово, скрываем загрузчик');
-    loader?.classList.add('hidden');
-    app?.classList.remove('hidden');
+    loader.classList.add('hidden');
+    app.classList.remove('hidden');
   }
 
-  // Синхронизируем пользователя (включая проверку подписки)
+  // 1) syncUser
   fetch('/api/syncUser', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -40,19 +40,24 @@
       ref_code: startParam,
     }),
   })
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        showToast(data.error, 'error');
-        return;
+    .then(res => {
+      if (!res.ok) {
+        if (res.status === 403) {
+          showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error');
+        } else {
+          showToast('Ошибка синхронизации пользователя', 'error');
+        }
+        throw new Error(`syncUser status ${res.status}`);
       }
+      return res.json();
+    })
+    .then(data => {
       const u = data.user;
       if (!u) {
         showToast('Пользователь не найден', 'error');
-        return;
+        throw new Error('No user in response');
       }
 
-      // Отображаем данные пользователя
       document.querySelector('#username-text').textContent = u.username || 'user';
       const photoUrl = user.photo_url || '/images/default-avatar.png';
       const avatarEl = document.querySelector('#username-photo');
@@ -61,35 +66,39 @@
 
       document.querySelector('#invites').textContent = u.invites || 0;
       document.querySelector('#points').textContent = u.points || 0;
-
-      // Загружаем лидерборд
-      return fetch('/api/getLeaderboard');
     })
-    .then(res => res && res.ok ? res.json() : null)
-    .then(data => {
-      if (data && data.topUsers) {
-        const topUsers = data.topUsers;
-        const topList = document.querySelector('#top-users-list');
-        const medals = ['🥇', '🥈', '🥉'];
-        topList.innerHTML = topUsers
-          .slice(0, 3)
-          .map((u, i) => `
-            <li class="top__item">
-              ${medals[i] || ''} @${u.username || '–––'} — ${u.invites} приглашений
-            </li>
-          `)
-          .join('');
-
-        const myIndex = topUsers.findIndex(u => String(u.telegram_id) === refCode);
-        const place = myIndex >= 0 ? myIndex + 1 : '—';
-        document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`;
+    // 2) getLeaderboard
+    .then(() => fetch('/api/getLeaderboard'))
+    .then(res => {
+      if (!res.ok) {
+        showToast('Ошибка загрузки рейтинга', 'error');
+        throw new Error(`getLeaderboard status ${res.status}`);
       }
+      return res.json();
     })
+    .then(data => {
+      const topUsers = data.topUsers || [];
+      const topList = document.querySelector('#top-users-list');
+      const medals = ['🥇', '🥈', '🥉'];
+
+      topList.innerHTML = topUsers.slice(0, 3).map((u, i) => `
+        <li class="top__item">
+          ${medals[i] || ''} @${u.username || '–––'} — ${u.invites} приглашений
+        </li>
+      `).join('');
+
+      const myIndex = topUsers.findIndex(u => String(u.telegram_id) === String(user.id));
+      const place = myIndex >= 0 ? myIndex + 1 : '—';
+      document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`;
+    })
+    // 3) общая обработка ошибок
     .catch(err => {
       console.error(err);
-      showToast('Произошла ошибка при загрузке данных');
+      // все нужные toasts уже показаны выше
     })
+    // 4) скрываем лоадер в любом случае
     .finally(() => {
+      // кнопка приглашения
       const inviteBtn = document.querySelector('.invites__btn');
       if (!refCode) {
         inviteBtn.textContent = 'Ссылка недоступна';
@@ -97,12 +106,12 @@
       } else {
         const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`;
         inviteBtn.addEventListener('click', () => {
-          navigator.clipboard
-            .writeText(deepLink)
+          navigator.clipboard.writeText(deepLink)
             .then(() => showToast('Ссылка скопирована!', 'success'))
-            .catch(() => showToast('Не удалось скопировать ссылку'));
+            .catch(() => showToast('Не удалось скопировать ссылку', 'error'));
         });
       }
+
       hideLoaderAndShowApp();
     });
 })();
