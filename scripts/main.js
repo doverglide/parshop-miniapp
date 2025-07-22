@@ -1,5 +1,6 @@
 /* File: public/scripts/main.js */
 ;(function () {
+  console.log('🔥 main.js загружен');
   const tg = window.Telegram.WebApp;
   const user = tg.initDataUnsafe.user || {};
   const startParam = tg.initDataUnsafe.start_param || null;
@@ -11,7 +12,10 @@
   const app = document.getElementById('app');
 
   // Скрываем app до загрузки данных
-  if (app) app.style.display = 'none';
+  if (app) {
+    app.style.opacity = '0';
+    app.style.display = 'none';
+  }
 
   function showToast(message, type = 'error') {
     let toast = document.getElementById('toast');
@@ -29,12 +33,19 @@
     }, 3000);
   }
 
-  function hideLoaderAndShowApp() {
+  function showAppWithFade() {
+    console.log('✅ showAppWithFade вызвана');
     if (loader) loader.style.display = 'none';
-    if (app) app.style.display = '';
+    if (app) {
+      app.style.display = '';
+      app.style.transition = 'opacity 0.5s ease-in';
+      // Триггерим перерисовку
+      requestAnimationFrame(() => {
+        app.style.opacity = '1';
+      });
+    }
   }
 
-  // Функция инициализации: делаем запросы и только после этого скрываем лоадер
   async function init() {
     try {
       // 1) syncUser
@@ -104,7 +115,7 @@
       console.error(err);
       showToast('Произошла ошибка при загрузке данных', 'error');
     } finally {
-      hideLoaderAndShowApp();
+      showAppWithFade();
     }
   }
 
