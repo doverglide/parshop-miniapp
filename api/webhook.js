@@ -1,9 +1,3 @@
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-}
-
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -12,29 +6,39 @@ const supabase = createClient(
 )
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end()
-
-  const auth = req.headers['authorization']
-  if (!auth || auth !== `Bearer ${process.env.BOT_TOKEN}`) {
-    return res.status(401).end()
+  if (req.method !== 'POST') {
+    return res.status(405).end()
   }
 
-  console.log('🌐 Webhook received, full body:\n', JSON.stringify(req.body, null, 2))
+  const update = req.body
+  const message = update.message
 
-  const webhookData = req.body
-
-  const { data, error } = await supabase
-    .from('webhook_logs')
-    .insert([{
-      update_id: webhookData.update_id,
-      payload: webhookData,
-      received_at: new Date().toISOString(),
-    }])
-
-  if (error) {
-    console.error('❌ Supabase insert error:', error)
-    return res.status(500).json({ error: 'DB insert failed' })
+  if (!message || !message.text) {
+    return res.status(200).send('ok')
   }
 
-  res.status(200).json({ success: true })
+  const text = message.text.trim()
+  const chatId = message.chat.id
+
+  if (text.startsWith('/start')) {
+    const parts = text.split(' ')
+    const refCode = parts[1] || null
+
+    if (refCode) {
+      const { error } = await supabase.from('referrals').insert({
+        invited_telegram_id: chatId,
+        referrer_code: refCode,
+        invited_at: new Date().toISOString(),
+      })
+
+      if (error) {
+        console.error('Supabase error:', error)
+        return res.status(500).send('Error saving referral')
+      }
+
+      console.log(`User ${chatId} invited by code ${refCode}`)
+    }
+  }
+
+  res.status(200).send('ok')
 }
