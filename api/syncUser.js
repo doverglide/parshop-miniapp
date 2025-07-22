@@ -5,6 +5,9 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 )
 
+const BOT_TOKEN = process.env.BOT_TOKEN
+const CHANNEL_ID = '@parshop116'  // Твой канал
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' })
@@ -16,7 +19,27 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'telegram_id is required' })
   }
 
-  // Проверяем, существует ли пользователь
+  // Проверяем подписку пользователя на канал
+  try {
+    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${telegram_id}`
+    const response = await fetch(url)
+    const json = await response.json()
+
+    if (!json.ok) {
+      console.error('Ошибка Telegram API:', json)
+      return res.status(500).json({ error: 'Telegram API error' })
+    }
+
+    const status = json.result.status
+    if (status === 'left' || status === 'kicked') {
+      return res.status(403).json({ error: 'Подпишись на @parshop116 чтобы пользоваться ботом' })
+    }
+  } catch (err) {
+    console.error('Ошибка проверки подписки:', err)
+    return res.status(500).json({ error: 'Ошибка проверки подписки' })
+  }
+
+  // Проверяем, существует ли пользователь в базе
   const { data: existingUser, error: fetchError } = await supabase
     .from('users')
     .select('invites, points, username, telegram_id, invited_by')
@@ -24,14 +47,14 @@ export default async function handler(req, res) {
     .maybeSingle()
 
   if (fetchError) {
-    console.error('❌ Ошибка поиска пользователя:', fetchError)
+    console.error('Ошибка поиска пользователя:', fetchError)
     return res.status(500).json({ error: fetchError.message })
   }
 
   let user = existingUser
 
   if (!existingUser) {
-    // Создаем нового пользователя, с invited_by — пригласивший, если есть и это не он сам
+    // Создаем нового пользователя с полем invited_by
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert({
@@ -45,13 +68,13 @@ export default async function handler(req, res) {
       .single()
 
     if (insertError) {
-      console.error('❌ Ошибка создания пользователя:', insertError)
+      console.error('Ошибка создания пользователя:', insertError)
       return res.status(500).json({ error: insertError.message })
     }
 
     user = newUser
 
-    // Обновляем invites у пригласившего, если есть
+    // Обновляем invites у пригласившего
     if (ref_code && String(ref_code) !== String(telegram_id)) {
       const refId = String(ref_code)
       const { data: refUser, error: refFetchError } = await supabase
@@ -61,7 +84,7 @@ export default async function handler(req, res) {
         .maybeSingle()
 
       if (refFetchError) {
-        console.error('❌ Ошибка поиска реферера:', refFetchError)
+        console.error('Ошибка поиска реферера:', refFetchError)
       } else if (refUser) {
         const newInvites = (refUser.invites || 0) + 1
         const { error: updateErr } = await supabase
@@ -69,14 +92,13 @@ export default async function handler(req, res) {
           .update({ invites: newInvites })
           .eq('telegram_id', refId)
         if (updateErr) {
-          console.error('❌ Ошибка обновления invites:', updateErr)
+          console.error('Ошибка обновления invites:', updateErr)
         } else {
-          console.log(`✅ Invites у ${refId} обновлены до ${newInvites}`)
+          console.log(`Invites у ${refId} обновлены до ${newInvites}`)
         }
       }
     }
   }
 
-  // ВОТ ЗДЕСЬ ВАЖНО ОТПРАВИТЬ ОТВЕТ:
   return res.status(200).json({ user })
 }

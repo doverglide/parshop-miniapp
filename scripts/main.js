@@ -68,7 +68,7 @@
       const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`
       inviteBtn.addEventListener('click', () => {
         navigator.clipboard.writeText(deepLink)
-          .then(() => alert('Ссылка скопирована:\n' + deepLink))
+          .then(() => alert('Ссылка скопирована!'))
           .catch(() => alert('Не удалось скопировать ссылку'))
       })
     })
