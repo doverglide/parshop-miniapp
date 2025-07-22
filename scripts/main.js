@@ -1,7 +1,7 @@
 ;(function() {
   const tg = window.Telegram.WebApp
   const user = tg.initDataUnsafe.user || {}
-  const refCode = tg.initDataUnsafe.start_param || null
+  const refCode = tg.initDataUnsafe.start_param || String(user.id)
   const botUsername = tg.initDataUnsafe.bot_username || 'Parshop_116bot'
   const appShort = 'Parcoin'  // short_name вашего Mini App
 
