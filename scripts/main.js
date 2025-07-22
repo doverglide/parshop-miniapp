@@ -1,4 +1,5 @@
 ;(function () {
+  console.log('🔥 main.js загружен');
   const tg = window.Telegram.WebApp;
   const user = tg.initDataUnsafe.user || {};
   const startParam = tg.initDataUnsafe.start_param || null;
@@ -26,6 +27,7 @@
   }
 
   function hideLoaderAndShowApp() {
+    console.log('✅ hideLoaderAndShowApp вызвана');
     loader.classList.add('hidden');
     app.classList.remove('hidden');
   }
