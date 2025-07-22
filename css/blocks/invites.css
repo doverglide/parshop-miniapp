@@ -1,7 +1,20 @@
+.invites {
+    display: flex;
+    flex-direction: column;
+}
+
 .invites__title {
     font-size: 24px;
 }
 
 .invites__sum {
     font-size: 32px;
+}
+
+.invites__btn {
+    font-size: 24px;
+    background-color: #1c0324;
+    border: 1px solid #412948;
+    border-radius: 12px;
+    padding: 5px 0px;
 }
