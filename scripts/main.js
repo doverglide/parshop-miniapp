@@ -10,6 +10,9 @@
   const loader = document.getElementById('loader');
   const app = document.getElementById('app');
 
+  // Убедимся, что app изначально скрыт
+  if (app) app.style.display = 'none';
+
   function showToast(message, type = 'error') {
     let toast = document.getElementById('toast');
     if (!toast) {
@@ -28,8 +31,8 @@
 
   function hideLoaderAndShowApp() {
     console.log('✅ hideLoaderAndShowApp вызвана');
-    loader.classList.add('hidden');
-    app.classList.remove('hidden');
+    if (loader) loader.style.display = 'none';
+    if (app) app.style.display = '';
   }
 
   // 1) syncUser
@@ -96,24 +99,23 @@
     // 3) общая обработка ошибок
     .catch(err => {
       console.error(err);
-      // все нужные toasts уже показаны выше
     })
     // 4) скрываем лоадер в любом случае
     .finally(() => {
-      // кнопка приглашения
       const inviteBtn = document.querySelector('.invites__btn');
-      if (!refCode) {
-        inviteBtn.textContent = 'Ссылка недоступна';
-        inviteBtn.disabled = true;
-      } else {
-        const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`;
-        inviteBtn.addEventListener('click', () => {
-          navigator.clipboard.writeText(deepLink)
-            .then(() => showToast('Ссылка скопирована!', 'success'))
-            .catch(() => showToast('Не удалось скопировать ссылку', 'error'));
-        });
+      if (inviteBtn) {
+        if (!refCode) {
+          inviteBtn.textContent = 'Ссылка недоступна';
+          inviteBtn.disabled = true;
+        } else {
+          const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`;
+          inviteBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(deepLink)
+              .then(() => showToast('Ссылка скопирована!', 'success'))
+              .catch(() => showToast('Не удалось скопировать ссылку', 'error'));
+          });
+        }
       }
-
       hideLoaderAndShowApp();
     });
 })();
