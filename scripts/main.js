@@ -1,126 +1,108 @@
 ;(function () {
-  const tg = window.Telegram.WebApp
-  const user = tg.initDataUnsafe.user || {}
-  const startParam = tg.initDataUnsafe.start_param || null
-  const refCode = String(user.id)
-  const botUsername = tg.initDataUnsafe.bot_username || 'Parshop_116bot'
-  const appShort = 'Parcoin'
-  const loader = document.getElementById('loader')
-  const app = document.getElementById('app')
+  const tg = window.Telegram.WebApp;
+  const user = tg.initDataUnsafe.user || {};
+  const startParam = tg.initDataUnsafe.start_param || null;
+  const refCode = String(user.id);
+  const botUsername = tg.initDataUnsafe.bot_username || 'Parshop_116bot';
+  const appShort = 'Parcoin';
+  const loader = document.getElementById('loader');
+  const app = document.getElementById('app');
 
   function showToast(message, type = 'error') {
-    let toast = document.getElementById('toast')
+    let toast = document.getElementById('toast');
     if (!toast) {
-      toast = document.createElement('div')
-      toast.id = 'toast'
-      toast.className = 'toast'
-      document.body.appendChild(toast)
+      toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.className = 'toast';
+      document.body.appendChild(toast);
     }
-
-    toast.textContent = message
-    toast.className = `toast show ${type}`
-
-    clearTimeout(toast._hideTimeout)
+    toast.textContent = message;
+    toast.className = `toast show ${type}`;
+    clearTimeout(toast._hideTimeout);
     toast._hideTimeout = setTimeout(() => {
-      toast.classList.remove('show')
-    }, 3000)
+      toast.classList.remove('show');
+    }, 3000);
   }
 
   function hideLoaderAndShowApp() {
-    console.log('Скрываем загрузку, показываем приложение')
-    loader?.classList.add('hidden')
-    app?.classList.remove('hidden')
+    console.log('✅ Приложение готово, скрываем загрузчик');
+    loader?.classList.add('hidden');
+    app?.classList.remove('hidden');
   }
 
-  fetch('https://parshop-miniapp.vercel.app/api/checkSubscription', {
+  // Синхронизируем пользователя (включая проверку подписки)
+  fetch('/api/syncUser', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ telegram_id: user.id }),
+    body: JSON.stringify({
+      telegram_id: user.id,
+      username: user.username,
+      ref_code: startParam,
+    }),
   })
     .then(res => res.json())
-    .then(subscription => {
-      if (!subscription?.is_subscribed) {
-        showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error')
-        throw new Error('Пользователь не подписан')
+    .then(data => {
+      if (data.error) {
+        showToast(data.error, 'error');
+        return;
+      }
+      const u = data.user;
+      if (!u) {
+        showToast('Пользователь не найден', 'error');
+        return;
       }
 
-      return fetch('https://parshop-miniapp.vercel.app/api/syncUser', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_id: user.id,
-          username: user.username,
-          ref_code: startParam,
-        }),
-      })
+      // Отображаем данные пользователя
+      document.querySelector('#username-text').textContent = u.username || 'user';
+      const photoUrl = user.photo_url || '/images/default-avatar.png';
+      const avatarEl = document.querySelector('#username-photo');
+      avatarEl.src = photoUrl;
+      avatarEl.alt = u.username ? `Фото ${u.username}` : 'Фото пользователя';
+
+      document.querySelector('#invites').textContent = u.invites || 0;
+      document.querySelector('#points').textContent = u.points || 0;
+
+      // Загружаем лидерборд
+      return fetch('/api/getLeaderboard');
     })
-    .then(res => {
-      if (!res.ok) throw new Error('Ошибка синхронизации пользователя')
-      return res.json()
-    })
+    .then(res => res && res.ok ? res.json() : null)
     .then(data => {
-      const u = data.user
-      if (!u) throw new Error('Пользователь не найден')
+      if (data && data.topUsers) {
+        const topUsers = data.topUsers;
+        const topList = document.querySelector('#top-users-list');
+        const medals = ['🥇', '🥈', '🥉'];
+        topList.innerHTML = topUsers
+          .slice(0, 3)
+          .map((u, i) => `
+            <li class="top__item">
+              ${medals[i] || ''} @${u.username || '–––'} — ${u.invites} приглашений
+            </li>
+          `)
+          .join('');
 
-      document.querySelector('#username-text').textContent = u.username || 'user'
-      const photoUrl = user.photo_url || './images/default-avatar.png'
-      const avatarEl = document.querySelector('#username-photo')
-      avatarEl.src = photoUrl
-      avatarEl.alt = u.username ? `Фото ${u.username}` : 'Фото пользователя'
-
-      document.querySelector('#invites').textContent = u.invites || 0
-      document.querySelector('#points').textContent = u.points || 0
-
-      return fetch('https://parshop-miniapp.vercel.app/api/getLeaderboard')
-    })
-    .then(res => {
-      if (!res.ok) throw new Error('Ошибка загрузки рейтинга')
-      return res.json()
-    })
-    .then(data => {
-      if (!data) return
-      const topUsers = data.topUsers || []
-      const topList = document.querySelector('#top-users-list')
-      const medals = ['🥇', '🥈', '🥉']
-
-      topList.innerHTML = topUsers
-        .slice(0, 3)
-        .map(
-          (u, i) => `
-          <li class="top__item">
-            ${medals[i] || ''} @${u.username || '–––'} — ${u.invites} приглашений
-          </li>
-        `
-        )
-        .join('')
-
-      const myIndex = topUsers.findIndex(
-        (u) => String(u.telegram_id) === String(user.id)
-      )
-      const place = myIndex >= 0 ? myIndex + 1 : '—'
-      document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`
+        const myIndex = topUsers.findIndex(u => String(u.telegram_id) === refCode);
+        const place = myIndex >= 0 ? myIndex + 1 : '—';
+        document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`;
+      }
     })
     .catch(err => {
-      console.error(err)
-      if (!err.message.includes('не подписан')) {
-        showToast('Произошла ошибка при загрузке данных')
-      }
+      console.error(err);
+      showToast('Произошла ошибка при загрузке данных');
     })
     .finally(() => {
-      const inviteBtn = document.querySelector('.invites__btn')
+      const inviteBtn = document.querySelector('.invites__btn');
       if (!refCode) {
-        inviteBtn.textContent = 'Ссылка недоступна'
-        inviteBtn.disabled = true
+        inviteBtn.textContent = 'Ссылка недоступна';
+        inviteBtn.disabled = true;
       } else {
-        const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`
+        const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`;
         inviteBtn.addEventListener('click', () => {
           navigator.clipboard
             .writeText(deepLink)
             .then(() => showToast('Ссылка скопирована!', 'success'))
-            .catch(() => showToast('Не удалось скопировать ссылку'))
-        })
+            .catch(() => showToast('Не удалось скопировать ссылку'));
+        });
       }
-
-      hideLoaderAndShowApp()
-    })
-})()
+      hideLoaderAndShowApp();
+    });
+})();
