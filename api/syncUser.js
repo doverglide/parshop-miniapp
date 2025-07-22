@@ -1,104 +1,121 @@
-import { createClient } from '@supabase/supabase-js'
+;(function () {
+  const tg = window.Telegram.WebApp
+  const user = tg.initDataUnsafe.user || {}
+  const startParam = tg.initDataUnsafe.start_param || null
+  const refCode = String(user.id)
+  const botUsername = tg.initDataUnsafe.bot_username || 'Parshop_116bot'
+  const appShort = 'Parcoin'
+  const loader = document.getElementById('loader')
+  const app = document.getElementById('app')
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-)
-
-const BOT_TOKEN = process.env.BOT_TOKEN
-const CHANNEL_ID = '@parshop116'  // Твой канал
-
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' })
-  }
-
-  const { telegram_id, username, ref_code } = req.body
-
-  if (!telegram_id) {
-    return res.status(400).json({ error: 'telegram_id is required' })
-  }
-
-  // Проверяем подписку пользователя на канал
-  try {
-    const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${telegram_id}`
-    const response = await fetch(url)
-    const json = await response.json()
-
-    if (!json.ok) {
-      console.error('Ошибка Telegram API:', json)
-      return res.status(500).json({ error: 'Telegram API error' })
+  function showToast(message, type = 'error') {
+    let toast = document.getElementById('toast')
+    if (!toast) {
+      toast = document.createElement('div')
+      toast.id = 'toast'
+      toast.className = 'toast'
+      document.body.appendChild(toast)
     }
 
-    const status = json.result.status
-    if (status === 'left' || status === 'kicked') {
-      return res.status(403).json({ error: 'Подпишись на @parshop116 чтобы пользоваться ботом' })
-    }
-  } catch (err) {
-    console.error('Ошибка проверки подписки:', err)
-    return res.status(500).json({ error: 'Ошибка проверки подписки' })
+    toast.textContent = message
+    toast.className = `toast show ${type}`
+
+    clearTimeout(toast._hideTimeout)
+    toast._hideTimeout = setTimeout(() => {
+      toast.classList.remove('show')
+    }, 3000)
   }
 
-  // Проверяем, существует ли пользователь в базе
-  const { data: existingUser, error: fetchError } = await supabase
-    .from('users')
-    .select('invites, points, username, telegram_id, invited_by')
-    .eq('telegram_id', String(telegram_id))
-    .maybeSingle()
-
-  if (fetchError) {
-    console.error('Ошибка поиска пользователя:', fetchError)
-    return res.status(500).json({ error: fetchError.message })
+  function hideLoaderAndShowApp() {
+    console.log('Скрываем загрузку, показываем приложение')
+    loader?.classList.add('hidden')
+    app?.classList.remove('hidden')
   }
 
-  let user = existingUser
-
-  if (!existingUser) {
-    // Создаем нового пользователя
-    const { data: newUser, error: insertError } = await supabase
-      .from('users')
-      .insert({
-        telegram_id: String(telegram_id),
-        username: username || null,
-        invites: 0,
-        points: 0,
-        invited_by: (ref_code && String(ref_code) !== String(telegram_id)) ? String(ref_code) : null,
-      })
-      .select('invites, points, username, telegram_id, invited_by')
-      .single()
-
-    if (insertError) {
-      console.error('Ошибка создания пользователя:', insertError)
-      return res.status(500).json({ error: insertError.message })
-    }
-
-    user = newUser
-
-    // Увеличиваем invites пригласившего
-    if (ref_code && String(ref_code) !== String(telegram_id)) {
-      const refId = String(ref_code)
-      const { data: refUser, error: refFetchError } = await supabase
-        .from('users')
-        .select('invites')
-        .eq('telegram_id', refId)
-        .maybeSingle()
-
-      if (refFetchError) {
-        console.error('Ошибка поиска реферера:', refFetchError)
-      } else if (refUser) {
-        const newInvites = (refUser.invites || 0) + 1
-        const { error: updateErr } = await supabase
-          .from('users')
-          .update({ invites: newInvites })
-          .eq('telegram_id', refId)
-        if (updateErr) {
-          console.error('Ошибка обновления invites:', updateErr)
+  // Сразу вызываем syncUser — он проверит и подписку, и создаст пользователя
+  fetch('https://parshop-miniapp.vercel.app/api/syncUser', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      telegram_id: user.id,
+      username: user.username,
+      ref_code: startParam,
+    }),
+  })
+    .then(res => {
+      if (!res.ok) {
+        if (res.status === 403) {
+          showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error')
         } else {
-          console.log(`Invites у ${refId} обновлены до ${newInvites}`)
+          showToast('Ошибка синхронизации пользователя')
         }
+        throw new Error(`Ошибка ${res.status}`)
       }
-    }
-  }
+      return res.json()
+    })
+    .then(data => {
+      const u = data.user
+      if (!u) throw new Error('Пользователь не найден')
 
-  return res.status(200).json({ user })
-}
+      document.querySelector('#username-text').textContent = u.username || 'user'
+      const photoUrl = user.photo_url || './images/default-avatar.png'
+      const avatarEl = document.querySelector('#username-photo')
+      avatarEl.src = photoUrl
+      avatarEl.alt = u.username ? `Фото ${u.username}` : 'Фото пользователя'
+
+      document.querySelector('#invites').textContent = u.invites || 0
+      document.querySelector('#points').textContent = u.points || 0
+
+      return fetch('https://parshop-miniapp.vercel.app/api/getLeaderboard')
+    })
+    .then(res => {
+      if (!res.ok) throw new Error('Ошибка загрузки рейтинга')
+      return res.json()
+    })
+    .then(data => {
+      if (!data) return
+      const topUsers = data.topUsers || []
+      const topList = document.querySelector('#top-users-list')
+      const medals = ['🥇', '🥈', '🥉']
+
+      topList.innerHTML = topUsers
+        .slice(0, 3)
+        .map(
+          (u, i) => `
+          <li class="top__item">
+            ${medals[i] || ''} @${u.username || '–––'} — ${u.invites} приглашений
+          </li>
+        `
+        )
+        .join('')
+
+      const myIndex = topUsers.findIndex(
+        (u) => String(u.telegram_id) === String(user.id)
+      )
+      const place = myIndex >= 0 ? myIndex + 1 : '—'
+      document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`
+    })
+    .catch(err => {
+      console.error(err)
+      if (!err.message.includes('403')) {
+        showToast('Произошла ошибка при загрузке данных')
+      }
+    })
+    .finally(() => {
+      const inviteBtn = document.querySelector('.invites__btn')
+      if (!refCode) {
+        inviteBtn.textContent = 'Ссылка недоступна'
+        inviteBtn.disabled = true
+      } else {
+        const deepLink = `https://t.me/${botUsername}/${appShort}?startapp=${refCode}`
+        inviteBtn.addEventListener('click', () => {
+          navigator.clipboard
+            .writeText(deepLink)
+            .then(() => showToast('Ссылка скопирована!', 'success'))
+            .catch(() => showToast('Не удалось скопировать ссылку'))
+        })
+      }
+
+      hideLoaderAndShowApp()
+    })
+})()

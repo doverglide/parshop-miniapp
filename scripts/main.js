@@ -32,7 +32,6 @@
     app?.classList.remove('hidden')
   }
 
-  // Проверка подписки
   fetch('https://parshop-miniapp.vercel.app/api/checkSubscription', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -45,7 +44,6 @@
         throw new Error('Пользователь не подписан')
       }
 
-      // Пользователь подписан, синхронизируем
       return fetch('https://parshop-miniapp.vercel.app/api/syncUser', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -64,7 +62,6 @@
       const u = data.user
       if (!u) throw new Error('Пользователь не найден')
 
-      // Вставляем имя и аватар
       document.querySelector('#username-text').textContent = u.username || 'user'
       const photoUrl = user.photo_url || './images/default-avatar.png'
       const avatarEl = document.querySelector('#username-photo')
