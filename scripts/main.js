@@ -1,6 +1,4 @@
-/* File: public/scripts/main.js */
 ;(function () {
-  console.log('🔥 main.js загружен');
   const tg = window.Telegram.WebApp;
   const user = tg.initDataUnsafe.user || {};
   const startParam = tg.initDataUnsafe.start_param || null;
@@ -34,7 +32,6 @@
   }
 
   function showAppWithFade() {
-    console.log('✅ showAppWithFade вызвана');
     if (loader) loader.style.display = 'none';
     if (app) {
       app.style.display = '';
