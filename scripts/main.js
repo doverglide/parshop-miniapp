@@ -1,5 +1,5 @@
+/* File: public/scripts/main.js */
 ;(function () {
-  console.log('🔥 main.js загружен');
   const tg = window.Telegram.WebApp;
   const user = tg.initDataUnsafe.user || {};
   const startParam = tg.initDataUnsafe.start_param || null;
@@ -10,7 +10,7 @@
   const loader = document.getElementById('loader');
   const app = document.getElementById('app');
 
-  // Убедимся, что app изначально скрыт
+  // Скрываем app до загрузки данных
   if (app) app.style.display = 'none';
 
   function showToast(message, type = 'error') {
@@ -30,78 +30,62 @@
   }
 
   function hideLoaderAndShowApp() {
-    console.log('✅ hideLoaderAndShowApp вызвана');
     if (loader) loader.style.display = 'none';
     if (app) app.style.display = '';
   }
 
-  // 1) syncUser
-  fetch('/api/syncUser', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      telegram_id: user.id,
-      username: user.username,
-      ref_code: startParam,
-    }),
-  })
-    .then(res => {
-      if (!res.ok) {
-        if (res.status === 403) {
-          showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error');
-        } else {
-          showToast('Ошибка синхронизации пользователя', 'error');
-        }
-        throw new Error(`syncUser status ${res.status}`);
+  // Функция инициализации: делаем запросы и только после этого скрываем лоадер
+  async function init() {
+    try {
+      // 1) syncUser
+      const syncRes = await fetch('/api/syncUser', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: user.id,
+          username: user.username,
+          ref_code: startParam,
+        }),
+      });
+      if (!syncRes.ok) {
+        if (syncRes.status === 403) showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error');
+        else showToast('Ошибка синхронизации пользователя', 'error');
+        return;
       }
-      return res.json();
-    })
-    .then(data => {
-      const u = data.user;
+      const syncData = await syncRes.json();
+      const u = syncData.user;
       if (!u) {
         showToast('Пользователь не найден', 'error');
-        throw new Error('No user in response');
+        return;
       }
-
       document.querySelector('#username-text').textContent = u.username || 'user';
       const photoUrl = user.photo_url || '/images/default-avatar.png';
       const avatarEl = document.querySelector('#username-photo');
       avatarEl.src = photoUrl;
       avatarEl.alt = u.username ? `Фото ${u.username}` : 'Фото пользователя';
-
       document.querySelector('#invites').textContent = u.invites || 0;
       document.querySelector('#points').textContent = u.points || 0;
-    })
-    // 2) getLeaderboard
-    .then(() => fetch('/api/getLeaderboard'))
-    .then(res => {
-      if (!res.ok) {
+
+      // 2) getLeaderboard
+      const lbRes = await fetch('/api/getLeaderboard');
+      if (!lbRes.ok) {
         showToast('Ошибка загрузки рейтинга', 'error');
-        throw new Error(`getLeaderboard status ${res.status}`);
+        return;
       }
-      return res.json();
-    })
-    .then(data => {
-      const topUsers = data.topUsers || [];
+      const lbData = await lbRes.json();
+      const topUsers = lbData.topUsers || [];
       const topList = document.querySelector('#top-users-list');
       const medals = ['🥇', '🥈', '🥉'];
-
       topList.innerHTML = topUsers.slice(0, 3).map((u, i) => `
         <li class="top__item">
           ${medals[i] || ''} @${u.username || '–––'} — ${u.invites} приглашений
         </li>
       `).join('');
-
-      const myIndex = topUsers.findIndex(u => String(u.telegram_id) === String(user.id));
+      const myIndex = topUsers.findIndex(u => String(u.telegram_id) === refCode);
       const place = myIndex >= 0 ? myIndex + 1 : '—';
       document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`;
-    })
-    // 3) общая обработка ошибок
-    .catch(err => {
-      console.error(err);
-    })
-    // 4) скрываем лоадер в любом случае
-    .finally(() => {
+
+      // приглашение
       const inviteBtn = document.querySelector('.invites__btn');
       if (inviteBtn) {
         if (!refCode) {
@@ -116,6 +100,13 @@
           });
         }
       }
+    } catch (err) {
+      console.error(err);
+      showToast('Произошла ошибка при загрузке данных', 'error');
+    } finally {
       hideLoaderAndShowApp();
-    });
+    }
+  }
+
+  init();
 })();
