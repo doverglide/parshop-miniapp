@@ -54,7 +54,7 @@ export default async function handler(req, res) {
   let user = existingUser
 
   if (!existingUser) {
-    // Создаем нового пользователя с полем invited_by
+    // Создаем нового пользователя
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert({
@@ -74,7 +74,7 @@ export default async function handler(req, res) {
 
     user = newUser
 
-    // Обновляем invites у пригласившего
+    // Увеличиваем invites пригласившего
     if (ref_code && String(ref_code) !== String(telegram_id)) {
       const refId = String(ref_code)
       const { data: refUser, error: refFetchError } = await supabase
