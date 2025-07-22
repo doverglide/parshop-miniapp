@@ -27,6 +27,7 @@
   }
 
   function hideLoaderAndShowApp() {
+    console.log('Скрываем загрузку, показываем приложение')
     loader?.classList.add('hidden')
     app?.classList.remove('hidden')
   }
@@ -41,7 +42,6 @@
     .then(subscription => {
       if (!subscription?.is_subscribed) {
         showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error')
-        hideLoaderAndShowApp()
         throw new Error('Пользователь не подписан')
       }
 
@@ -56,17 +56,16 @@
         }),
       })
     })
-    .then((res) => res.json())
-    .then((data) => {
+    .then(res => {
+      if (!res.ok) throw new Error('Ошибка синхронизации пользователя')
+      return res.json()
+    })
+    .then(data => {
       const u = data.user
-      if (!u) {
-        showToast('Ошибка: пользователь не найден')
-        return
-      }
+      if (!u) throw new Error('Пользователь не найден')
 
-      // Вставляем имя
+      // Вставляем имя и аватар
       document.querySelector('#username-text').textContent = u.username || 'user'
-      // Вставляем фото (берём из Telegram или заглушку)
       const photoUrl = user.photo_url || './images/default-avatar.png'
       const avatarEl = document.querySelector('#username-photo')
       avatarEl.src = photoUrl
@@ -77,8 +76,11 @@
 
       return fetch('https://parshop-miniapp.vercel.app/api/getLeaderboard')
     })
-    .then((res) => res && res.json())
-    .then((data) => {
+    .then(res => {
+      if (!res.ok) throw new Error('Ошибка загрузки рейтинга')
+      return res.json()
+    })
+    .then(data => {
       if (!data) return
       const topUsers = data.topUsers || []
       const topList = document.querySelector('#top-users-list')
@@ -101,7 +103,7 @@
       const place = myIndex >= 0 ? myIndex + 1 : '—'
       document.querySelector('#my-place').textContent = `Ваше место в топе: ${place}`
     })
-    .catch((err) => {
+    .catch(err => {
       console.error(err)
       if (!err.message.includes('не подписан')) {
         showToast('Произошла ошибка при загрузке данных')
