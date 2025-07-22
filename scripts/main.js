@@ -56,7 +56,7 @@
         }),
       });
       if (!syncRes.ok) {
-        if (syncRes.status === 403) showToast('Пожалуйста, подпишитесь на канал @parshop116', 'error');
+        if (syncRes.status === 403) showToast('Для работы приложения нужна подписка на канал. Подпишитесь, пожалуйста: @parshop116', 'error');
         else showToast('Ошибка синхронизации пользователя', 'error');
         return;
       }
