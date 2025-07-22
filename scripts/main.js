@@ -1,18 +1,19 @@
 ;(function() {
   const tg = window.Telegram.WebApp
   const user = tg.initDataUnsafe.user || {}
-  const refCode = tg.initDataUnsafe.start_param || String(user.id)
+  const startParam = tg.initDataUnsafe.start_param || null // <- рефкод, если пришли по ссылке
+  const refCode = String(user.id) // <- используется только для генерации своей ссылки
   const botUsername = tg.initDataUnsafe.bot_username || 'Parshop_116bot'
   const appShort = 'Parcoin'  // short_name вашего Mini App
 
-  // Синхронизируем пользователя и получаем данные
+  // Синхронизируем пользователя
   fetch('https://parshop-miniapp.vercel.app/api/syncUser', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       telegram_id: user.id,
       username: user.username,
-      ref_code: refCode
+      ref_code: startParam // <- только если реально кто-то пригласил
     })
   })
     .then(res => res.json())

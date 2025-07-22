@@ -49,33 +49,32 @@ export default async function handler(req, res) {
     }
 
     user = newUser
-  }
 
-  // Если передан реферальный код, увеличиваем invites у пригласившего
-  if (ref_code) {
-    const refId = String(ref_code)
-    const { data: refUser, error: refFetchError } = await supabase
-      .from('users')
-      .select('invites')
-      .eq('telegram_id', refId)
-      .maybeSingle()
-
-    if (refFetchError) {
-      console.error('❌ Ошибка поиска реферера:', refFetchError)
-    } else if (refUser) {
-      const newInvites = (refUser.invites || 0) + 1
-      const { error: updateErr } = await supabase
+    // Только при создании — увеличиваем invites у пригласившего
+    if (ref_code && String(ref_code) !== String(telegram_id)) {
+      const refId = String(ref_code)
+      const { data: refUser, error: refFetchError } = await supabase
         .from('users')
-        .update({ invites: newInvites })
+        .select('invites')
         .eq('telegram_id', refId)
-      if (updateErr) {
-        console.error('❌ Ошибка обновления invites:', updateErr)
-      } else {
-        console.log(`✅ Invites у ${refId} обновлены до ${newInvites}`)
+        .maybeSingle()
+
+      if (refFetchError) {
+        console.error('❌ Ошибка поиска реферера:', refFetchError)
+      } else if (refUser) {
+        const newInvites = (refUser.invites || 0) + 1
+        const { error: updateErr } = await supabase
+          .from('users')
+          .update({ invites: newInvites })
+          .eq('telegram_id', refId)
+        if (updateErr) {
+          console.error('❌ Ошибка обновления invites:', updateErr)
+        } else {
+          console.log(`✅ Invites у ${refId} обновлены до ${newInvites}`)
+        }
       }
     }
   }
 
-  // Возвращаем данные пользователя
   return res.status(200).json({ user })
 }
